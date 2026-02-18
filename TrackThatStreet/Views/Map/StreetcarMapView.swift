@@ -12,13 +12,31 @@ struct StreetcarMapView: View {
                         Annotation(vehicle.id, coordinate: CLLocationCoordinate2D(
                             latitude: vehicle.lat, longitude: vehicle.lon
                         )) {
-                            VehicleAnnotationView(vehicle: vehicle, routeTag: vehicle.routeTag)
+                            VehicleAnnotationView(
+                                vehicle: vehicle,
+                                routeTag: vehicle.routeTag,
+                                isSelected: viewModel.selectedVehicle?.id == vehicle.id
+                            )
+                            .onTapGesture { viewModel.selectVehicle(vehicle) }
                         }
                     }
                 }
                 .mapStyle(.standard(pointsOfInterest: .excludingAll))
+                .onTapGesture { viewModel.dismissVehicle() }
 
                 routeFilterBar
+
+                if let vehicle = viewModel.selectedVehicle {
+                    VStack {
+                        Spacer()
+                        VehiclePopupView(vehicle: vehicle) {
+                            viewModel.dismissVehicle()
+                        }
+                        .padding()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    .animation(.snappy, value: viewModel.selectedVehicle?.id)
+                }
             }
             .navigationTitle("Map")
             .navigationBarTitleDisplayMode(.inline)

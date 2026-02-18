@@ -3,9 +3,16 @@ import SwiftUI
 struct VehicleAnnotationView: View {
     let vehicle: Vehicle
     let routeTag: String
+    var isSelected: Bool = false
 
     var body: some View {
         ZStack {
+            if isSelected {
+                Circle()
+                    .stroke(routeColor, lineWidth: 3)
+                    .frame(width: 34, height: 34)
+            }
+
             Circle()
                 .fill(routeColor)
                 .frame(width: 24, height: 24)
@@ -15,11 +22,11 @@ struct VehicleAnnotationView: View {
                 .foregroundStyle(.white)
                 .rotationEffect(.degrees(Double(vehicle.heading)))
         }
-        .shadow(radius: 2)
+        .shadow(radius: isSelected ? 4 : 2)
         .accessibilityLabel("Vehicle \(vehicle.id) on route \(routeTag), heading \(vehicle.heading) degrees")
     }
 
-    private var routeColor: Color {
+    var routeColor: Color {
         if let route = StreetcarRoute(rawValue: routeTag) {
             switch route {
             case .r501: .red
@@ -34,6 +41,70 @@ struct VehicleAnnotationView: View {
             }
         } else {
             .ttcRed
+        }
+    }
+}
+
+struct VehiclePopupView: View {
+    let vehicle: Vehicle
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(routeName, systemImage: "tram.fill")
+                    .font(.headline)
+                Spacer()
+                Button { onDismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Divider()
+
+            LabeledRow("Vehicle", value: vehicle.id)
+            LabeledRow("Speed", value: "\(vehicle.speedKmHr) km/h")
+            LabeledRow("Heading", value: "\(vehicle.heading)\u{00B0}")
+
+            if vehicle.secsSinceReport < 60 {
+                LabeledRow("Updated", value: "\(vehicle.secsSinceReport)s ago")
+            } else {
+                LabeledRow("Updated", value: "\(vehicle.secsSinceReport / 60)m ago")
+            }
+
+            if let dirTag = vehicle.dirTag {
+                LabeledRow("Direction", value: dirTag)
+            }
+        }
+        .padding()
+        .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(radius: 8)
+        .frame(maxWidth: 280)
+    }
+
+    private var routeName: String {
+        StreetcarRoute(rawValue: vehicle.routeTag)?.displayName ?? vehicle.routeTag
+    }
+}
+
+private struct LabeledRow: View {
+    let label: String
+    let value: String
+
+    init(_ label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .font(.subheadline)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.medium))
         }
     }
 }

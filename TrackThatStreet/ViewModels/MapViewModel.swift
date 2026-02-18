@@ -61,7 +61,18 @@ final class MapViewModel {
         isLoading = false
     }
 
+    var selectedVehicle: Vehicle?
+
     func selectRoute(_ routeTag: String?) {
         selectedRouteTag = selectedRouteTag == routeTag ? nil : routeTag
+        selectedVehicle = nil
+    }
+
+    func selectVehicle(_ vehicle: Vehicle) {
+        selectedVehicle = selectedVehicle?.id == vehicle.id ? nil : vehicle
+    }
+
+    func dismissVehicle() {
+        selectedVehicle = nil
     }
 }
