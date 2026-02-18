@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PredictionRowView: View {
     let prediction: Prediction
+    var onTrack: ((Prediction) -> Void)?
 
     var body: some View {
         HStack {
@@ -20,6 +21,20 @@ struct PredictionRowView: View {
             }
 
             Spacer()
+
+            if let onTrack {
+                Button {
+                    onTrack(prediction)
+                } label: {
+                    Text("Track")
+                        .font(TTCFonts.badge)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.ttcRed, in: Capsule())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+            }
 
             CountdownTimerView(epochTime: prediction.epochTime)
         }

@@ -7,12 +7,23 @@ final class RouteDetailViewModel {
     var routeConfig: Route?
     var vehicles: [Vehicle] = []
     var predictionGroups: [PredictionGroup] = []
-    var selectedDirectionTag: String?
+    var selectedDirectionTag: String? {
+        didSet {
+            if oldValue != selectedDirectionTag {
+                selectedStopTag = nil
+            }
+        }
+    }
+    var selectedStopTag: String?
     var status: ServiceStatus = .good
     var bunchingAlerts: [BunchingAlert] = []
     var gapAlerts: [GapAlert] = []
+    var serviceMessages: [ServiceMessage] = []
     var isLoading = false
     var errorMessage: String?
+
+    let arrivalAlertService = ArrivalAlertService()
+    let liveActivityService = LiveActivityService()
 
     private let apiClient = TTCAPIClient.shared
     private let scheduler = RefreshScheduler()
@@ -24,6 +35,21 @@ final class RouteDetailViewModel {
     var filteredVehicles: [Vehicle] {
         guard let dirTag = selectedDirectionTag else { return vehicles }
         return vehicles.filter { $0.dirTag == dirTag }
+    }
+
+    var stopsForSelectedDirection: [Stop] {
+        guard let config = routeConfig,
+              let dirTag = selectedDirectionTag,
+              let dir = config.directions.first(where: { $0.tag == dirTag }) else {
+            return routeConfig?.stops ?? []
+        }
+        let stopsByTag = Dictionary(uniqueKeysWithValues: config.stops.map { ($0.tag, $0) })
+        return dir.stopTags.compactMap { stopsByTag[$0] }
+    }
+
+    var selectedStop: Stop? {
+        guard let tag = selectedStopTag else { return nil }
+        return routeConfig?.stops.first { $0.tag == tag }
     }
 
     var activePredictions: [Prediction] {
@@ -50,6 +76,17 @@ final class RouteDetailViewModel {
 
     func stopMonitoring() {
         scheduler.stop()
+        liveActivityService.stopTracking()
+    }
+
+    func trackPrediction(_ prediction: Prediction) {
+        let stopName = selectedStop?.title ?? "Stop"
+        liveActivityService.startTracking(
+            routeName: streetcarRoute.displayName,
+            stopName: stopName,
+            routeTag: streetcarRoute.routeTag,
+            prediction: prediction
+        )
     }
 
     func loadAll() async {
@@ -74,6 +111,13 @@ final class RouteDetailViewModel {
         }
 
         await refresh()
+
+        do {
+            serviceMessages = try await apiClient.fetchMessages(routeTag: streetcarRoute.routeTag)
+        } catch {
+            // Non-critical, keep empty
+        }
+
         isLoading = false
     }
 
@@ -95,9 +139,9 @@ final class RouteDetailViewModel {
         await fetchPredictions()
     }
 
-    private func fetchPredictions() async {
+    func fetchPredictions() async {
         guard let config = routeConfig else { return }
-        let stopTag = pickRepresentativeStop(config: config)
+        let stopTag = selectedStopTag ?? pickRepresentativeStop(config: config)
         guard let stopTag else { return }
 
         do {
@@ -105,6 +149,12 @@ final class RouteDetailViewModel {
                 routeTag: streetcarRoute.routeTag,
                 stopTag: stopTag
             )
+            let allPredictions = predictionGroups.flatMap { $0.predictions }
+            arrivalAlertService.checkAndAlert(predictions: allPredictions)
+
+            if liveActivityService.isTracking, let first = allPredictions.sorted(by: { $0.seconds < $1.seconds }).first {
+                liveActivityService.update(prediction: first)
+            }
         } catch {
             // Keep existing predictions on error
         }

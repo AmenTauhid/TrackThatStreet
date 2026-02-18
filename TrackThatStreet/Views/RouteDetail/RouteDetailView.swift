@@ -14,12 +14,31 @@ struct RouteDetailView: View {
         List {
             statusSection
             alertsSection
+            serviceAdvisoriesSection
             directionsSection
+            stopPickerSection
             predictionsSection
             miniMapSection
         }
         .navigationTitle(streetcarRoute.displayName)
         .refreshable { await viewModel.refresh() }
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    FavoritesService.shared.toggleRoute(streetcarRoute.routeTag)
+                } label: {
+                    Image(systemName: FavoritesService.shared.isRouteFavorite(streetcarRoute.routeTag) ? "star.fill" : "star")
+                }
+                .accessibilityLabel("Toggle favorite")
+
+                Button {
+                    viewModel.arrivalAlertService.isEnabled.toggle()
+                } label: {
+                    Image(systemName: viewModel.arrivalAlertService.isEnabled ? "bell.fill" : "bell")
+                }
+                .accessibilityLabel("Toggle arrival alert")
+            }
+        }
         .overlay {
             if viewModel.isLoading && viewModel.vehicles.isEmpty {
                 ProgressView("Loading...")
@@ -73,16 +92,42 @@ struct RouteDetailView: View {
     }
 
     @ViewBuilder
+    private var stopPickerSection: some View {
+        let stops = viewModel.stopsForSelectedDirection
+        if !stops.isEmpty {
+            Section("Stops") {
+                StopPickerView(stops: stops, selectedStopTag: $viewModel.selectedStopTag)
+                    .onChange(of: viewModel.selectedStopTag) {
+                        Task { await viewModel.fetchPredictions() }
+                    }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var serviceAdvisoriesSection: some View {
+        if !viewModel.serviceMessages.isEmpty {
+            Section("Service Advisories") {
+                ForEach(viewModel.serviceMessages) { message in
+                    ServiceAlertView(message: message)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private var predictionsSection: some View {
         let predictions = Array(viewModel.activePredictions.prefix(5))
-        Section("Next Arrivals") {
+        Section(viewModel.selectedStop.map { "Arrivals at \($0.title)" } ?? "Next Arrivals") {
             if predictions.isEmpty {
                 Text("No predictions available")
                     .foregroundStyle(.secondary)
                     .font(TTCFonts.caption)
             } else {
                 ForEach(predictions) { prediction in
-                    PredictionRowView(prediction: prediction)
+                    PredictionRowView(prediction: prediction) { pred in
+                        viewModel.trackPrediction(pred)
+                    }
                 }
             }
         }
@@ -90,9 +135,31 @@ struct RouteDetailView: View {
 
     @ViewBuilder
     private var miniMapSection: some View {
-        if !viewModel.filteredVehicles.isEmpty {
+        if !viewModel.filteredVehicles.isEmpty || viewModel.routeConfig != nil {
             Section("Vehicles") {
                 Map {
+                    if let config = viewModel.routeConfig {
+                        ForEach(Array(config.paths.enumerated()), id: \.offset) { _, path in
+                            MapPolyline(coordinates: path.map {
+                                CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon)
+                            })
+                            .stroke(Color(hex: config.color), lineWidth: 3)
+                        }
+                    }
+                    ForEach(viewModel.stopsForSelectedDirection) { stop in
+                        Annotation("", coordinate: CLLocationCoordinate2D(
+                            latitude: stop.lat, longitude: stop.lon
+                        )) {
+                            Circle()
+                                .fill(viewModel.selectedStopTag == stop.tag ? Color.ttcRed : .white)
+                                .stroke(Color.ttcRed, lineWidth: 2)
+                                .frame(width: 10, height: 10)
+                                .onTapGesture {
+                                    viewModel.selectedStopTag = stop.tag
+                                    Task { await viewModel.fetchPredictions() }
+                                }
+                        }
+                    }
                     ForEach(viewModel.filteredVehicles) { vehicle in
                         Annotation(vehicle.id, coordinate: CLLocationCoordinate2D(
                             latitude: vehicle.lat, longitude: vehicle.lon
