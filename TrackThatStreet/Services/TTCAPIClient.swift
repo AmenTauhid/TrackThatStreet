@@ -78,4 +78,19 @@ final class TTCAPIClient: Sendable {
         let parser = PredictionXMLParser()
         return try parser.parse(data: data)
     }
+
+    nonisolated func fetchMessages(routeTag: String) async throws -> [ServiceMessage] {
+        let urlString = "\(baseURL)?command=messages&a=ttc&r=\(routeTag)"
+        guard let url = URL(string: urlString) else { throw TTCAPIError.invalidURL }
+
+        let data: Data
+        do {
+            (data, _) = try await session.data(from: url)
+        } catch {
+            throw TTCAPIError.networkError(error)
+        }
+
+        let parser = MessageXMLParser()
+        return try parser.parse(data: data)
+    }
 }
