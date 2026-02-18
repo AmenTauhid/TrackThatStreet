@@ -65,16 +65,12 @@ struct VehiclePopupView: View {
 
             LabeledRow("Vehicle", value: vehicle.id)
             LabeledRow("Speed", value: "\(vehicle.speedKmHr) km/h")
-            LabeledRow("Heading", value: "\(vehicle.heading)\u{00B0}")
+            LabeledRow("Direction", value: cardinalDirection)
 
             if vehicle.secsSinceReport < 60 {
                 LabeledRow("Updated", value: "\(vehicle.secsSinceReport)s ago")
             } else {
                 LabeledRow("Updated", value: "\(vehicle.secsSinceReport / 60)m ago")
-            }
-
-            if let dirTag = vehicle.dirTag {
-                LabeledRow("Direction", value: dirTag)
             }
         }
         .padding()
@@ -85,6 +81,12 @@ struct VehiclePopupView: View {
 
     private var routeName: String {
         StreetcarRoute(rawValue: vehicle.routeTag)?.displayName ?? vehicle.routeTag
+    }
+
+    private var cardinalDirection: String {
+        let directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        let index = Int((Double(vehicle.heading) + 22.5).truncatingRemainder(dividingBy: 360) / 45)
+        return "\(directions[index]) (\(vehicle.heading)\u{00B0})"
     }
 }
 
