@@ -9,6 +9,9 @@ struct ContentView: View {
             Tab("Map", systemImage: "map") {
                 StreetcarMapView()
             }
+            Tab("Near Me", systemImage: "location.fill") {
+                NearbyView()
+            }
         }
         .tint(.ttcRed)
     }
