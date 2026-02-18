@@ -1,21 +1,16 @@
-//
-//  ContentView.swift
-//  TrackThatStreet
-//
-//  Created by Ayman Tauhid on 2026-02-16.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            Tab("Routes", systemImage: "tram.fill") {
+                RouteListView()
+            }
+            Tab("Map", systemImage: "map") {
+                StreetcarMapView()
+            }
         }
-        .padding()
+        .tint(.ttcRed)
     }
 }
 
