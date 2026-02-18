@@ -2,6 +2,11 @@ import SwiftUI
 
 struct RouteListView: View {
     @State private var viewModel = RouteListViewModel()
+    private var favorites = FavoritesService.shared
+
+    private var favoriteRoutes: [StreetcarRoute] {
+        StreetcarRoute.allCases.filter { favorites.isRouteFavorite($0.routeTag) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -13,14 +18,32 @@ struct RouteListView: View {
                         Task { await viewModel.fetchAllRoutes() }
                     }
                 } else {
-                    List(StreetcarRoute.allCases) { route in
-                        NavigationLink(value: route) {
-                            RouteRowView(
-                                route: route,
-                                status: viewModel.routeStatuses[route.routeTag],
-                                vehicleCount: viewModel.vehicleCounts[route.routeTag],
-                                averageWait: viewModel.averageWaits[route.routeTag]
-                            )
+                    List {
+                        if !favoriteRoutes.isEmpty {
+                            Section("Favorites") {
+                                ForEach(favoriteRoutes) { route in
+                                    NavigationLink(value: route) {
+                                        RouteRowView(
+                                            route: route,
+                                            status: viewModel.routeStatuses[route.routeTag],
+                                            vehicleCount: viewModel.vehicleCounts[route.routeTag],
+                                            averageWait: viewModel.averageWaits[route.routeTag]
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Section("All Routes") {
+                            ForEach(StreetcarRoute.allCases) { route in
+                                NavigationLink(value: route) {
+                                    RouteRowView(
+                                        route: route,
+                                        status: viewModel.routeStatuses[route.routeTag],
+                                        vehicleCount: viewModel.vehicleCounts[route.routeTag],
+                                        averageWait: viewModel.averageWaits[route.routeTag]
+                                    )
+                                }
+                            }
                         }
                     }
                     .refreshable {

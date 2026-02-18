@@ -34,6 +34,14 @@ struct RouteRowView: View {
 
             Spacer()
 
+            Button {
+                FavoritesService.shared.toggleRoute(route.routeTag)
+            } label: {
+                Image(systemName: FavoritesService.shared.isRouteFavorite(route.routeTag) ? "star.fill" : "star")
+                    .foregroundStyle(FavoritesService.shared.isRouteFavorite(route.routeTag) ? .yellow : .secondary)
+            }
+            .buttonStyle(.plain)
+
             if let status {
                 StatusBadgeView(status: status)
             }
